@@ -1,0 +1,43 @@
+menu "Example Connection Configuration"
+
+    orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
+
+    config EXAMPLE_WIFI_SSID
+        string "WiFi SSID"
+        default "dummy-ap"
+        help
+            SSID (network name) for the AP.
+
+    config EXAMPLE_WIFI_PASSWORD
+        string "WiFi Password"
+        default "mypassword"
+        help
+            WiFi password (WPA or WPA2) for the ap to use.
+            Can be left blank if the network has no security set.
+
+    choice EXAMPLE_WIFI_AUTH_MODE
+        prompt "WiFi AP auth mode"
+        default EXAMPLE_WIFI_AUTH_OPEN
+        help
+            The authmode to use.
+
+        config EXAMPLE_WIFI_AUTH_OPEN
+            bool "OPEN"
+        config EXAMPLE_WIFI_AUTH_WEP
+            bool "WEP"
+        config EXAMPLE_WIFI_AUTH_WPA_PSK
+            bool "WPA PSK"
+        config EXAMPLE_WIFI_AUTH_WPA2_PSK
+            bool "WPA2 PSK"
+        config EXAMPLE_WIFI_AUTH_WPA_WPA2_PSK
+            bool "WPA WPA2 PSK"
+        config EXAMPLE_WIFI_AUTH_WPA2_ENTERPRISE
+            bool "WPA2 ENTERPRISE"
+        config EXAMPLE_WIFI_AUTH_WPA3_PSK
+            bool "WPA3 PSK"
+        config EXAMPLE_WIFI_AUTH_WPA2_WPA3_PSK
+            bool "WPA2 WPA3 PSK"
+        config EXAMPLE_WIFI_AUTH_WAPI_PSK
+            bool "WAPI PSK"
+    endchoice
+endmenu
