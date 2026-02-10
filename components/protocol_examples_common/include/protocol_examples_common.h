@@ -19,6 +19,8 @@
 extern "C" {
 #endif
 
+#define EXAMPLE_NETIF_DESC_STA "ap"
+
 #if !CONFIG_IDF_TARGET_LINUX
 
 #if CONFIG_EXAMPLE_WIFI_AUTH_OPEN

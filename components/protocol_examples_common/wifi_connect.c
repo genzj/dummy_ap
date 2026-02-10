@@ -16,65 +16,61 @@
 #include "protocol_examples_common.h"
 #include "example_common_private.h"
 #include "esp_log.h"
+#include "esp_mac.h"
+
+/* The examples use WiFi configuration that you can set via project configuration menu.
+
+   If you'd rather not, just change the below entries to strings with
+   the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
+*/
+#define EXAMPLE_ESP_WIFI_SSID      CONFIG_ESP_WIFI_SSID
+#define EXAMPLE_ESP_WIFI_PASS      CONFIG_ESP_WIFI_PASSWORD
+#define EXAMPLE_ESP_WIFI_CHANNEL   CONFIG_ESP_WIFI_CHANNEL
+#define EXAMPLE_MAX_STA_CONN       CONFIG_ESP_MAX_STA_CONN
+
+#if CONFIG_ESP_GTK_REKEYING_ENABLE
+#define EXAMPLE_GTK_REKEY_INTERVAL CONFIG_ESP_GTK_REKEY_INTERVAL
+#else
+#define EXAMPLE_GTK_REKEY_INTERVAL 0
+#endif
 
 static const char *TAG = "example_connect";
-static esp_netif_t *s_example_sta_netif = NULL;
-static SemaphoreHandle_t s_semph_get_ip_addrs = NULL;
 
-static void example_handler_on_wifi_disconnect(void *arg, esp_event_base_t event_base,
-                               int32_t event_id, void *event_data)
-{
-    wifi_event_sta_disconnected_t *disconn = event_data;
-    if (disconn->reason == WIFI_REASON_ROAMING) {
-        ESP_LOGD(TAG, "station roaming, do nothing");
-        return;
-    }
-    ESP_LOGI(TAG, "Wi-Fi disconnected %d, trying to reconnect...", disconn->reason);
-    esp_err_t err = esp_wifi_connect();
-    if (err == ESP_ERR_WIFI_NOT_STARTED) {
-        return;
-    }
-    ESP_ERROR_CHECK(err);
-}
+static void example_handler_on_wifi_disconnect(
+    void *arg, esp_event_base_t event_base, int32_t event_id,
+    wifi_event_ap_stadisconnected_t *event_data) {}
 
-static void example_handler_on_wifi_connect(void *esp_netif, esp_event_base_t event_base,
-                            int32_t event_id, void *event_data)
-{
-}
+static void
+example_handler_on_wifi_connect(
+    void *arg, esp_event_base_t event_base, int32_t event_id,
+    wifi_event_ap_staconnected_t *event_data) {}
 
-static void example_handler_on_sta_got_ip(void *arg, esp_event_base_t event_base,
-                      int32_t event_id, void *event_data)
-{
-    ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    if (!example_is_our_netif("", event->esp_netif)) {
-        return;
-    }
-    ESP_LOGI(TAG, "Got IPv4 event: Interface \"%s\" address: " IPSTR, esp_netif_get_desc(event->esp_netif), IP2STR(&event->ip_info.ip));
-    if (s_semph_get_ip_addrs) {
-        xSemaphoreGive(s_semph_get_ip_addrs);
-    } else {
-        ESP_LOGI(TAG, "- IPv4 address: " IPSTR ",", IP2STR(&event->ip_info.ip));
+static void wifi_event_handler(void *arg, esp_event_base_t event_base,
+                               int32_t event_id, void *event_data) {
+    if (event_id == WIFI_EVENT_AP_STACONNECTED) {
+        wifi_event_ap_staconnected_t *event =
+            (wifi_event_ap_staconnected_t *)event_data;
+        ESP_LOGI(
+            TAG, "station " MACSTR " join, AID=%d", MAC2STR(event->mac),
+            event->aid);
+        example_handler_on_wifi_connect(arg, event_base, event_id, event_data);
+    } else if (event_id == WIFI_EVENT_AP_STADISCONNECTED) {
+        wifi_event_ap_stadisconnected_t *event =
+            (wifi_event_ap_stadisconnected_t *)event_data;
+        ESP_LOGI(
+            TAG, "station " MACSTR " leave, AID=%d, reason=%d",
+            MAC2STR(event->mac), event->aid, event->reason);
+        example_handler_on_wifi_disconnect(arg, event_base, event_id, event_data);
     }
 }
 
-
-void example_wifi_start(void)
-{
+void example_wifi_start(void) {
+    esp_netif_create_default_wifi_ap();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    esp_netif_inherent_config_t esp_netif_config = ESP_NETIF_INHERENT_DEFAULT_WIFI_STA();
-    // Warning: the interface desc is used in tests to capture actual connection details (IP, gw, mask)
-    esp_netif_config.if_desc = "";
-    esp_netif_config.route_prio = 128;
-    s_example_sta_netif = esp_netif_create_wifi(WIFI_IF_STA, &esp_netif_config);
-    esp_wifi_set_default_wifi_sta_handlers();
-
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(
+        WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL, NULL));
 }
-
 
 void example_wifi_stop(void)
 {
@@ -84,45 +80,10 @@ void example_wifi_stop(void)
     }
     ESP_ERROR_CHECK(err);
     ESP_ERROR_CHECK(esp_wifi_deinit());
-    ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(s_example_sta_netif));
-    esp_netif_destroy(s_example_sta_netif);
-    s_example_sta_netif = NULL;
-}
-
-
-esp_err_t example_wifi_sta_do_connect(wifi_config_t wifi_config, bool wait)
-{
-    if (wait) {
-        s_semph_get_ip_addrs = xSemaphoreCreateBinary();
-        if (s_semph_get_ip_addrs == NULL) {
-            return ESP_ERR_NO_MEM;
-        }
-    }
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &example_handler_on_wifi_disconnect, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &example_handler_on_sta_got_ip, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &example_handler_on_wifi_connect, s_example_sta_netif));
-
-    ESP_LOGI(TAG, "Connecting to %s...", wifi_config.sta.ssid);
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    esp_err_t ret = esp_wifi_connect();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "WiFi connect failed! ret:%x", ret);
-        return ret;
-    }
-    if (wait) {
-        ESP_LOGI(TAG, "Waiting for IP(s)");
-        xSemaphoreTake(s_semph_get_ip_addrs, portMAX_DELAY);
-        vSemaphoreDelete(s_semph_get_ip_addrs);
-        s_semph_get_ip_addrs = NULL;
-    }
-    return ESP_OK;
 }
 
 esp_err_t example_wifi_sta_do_disconnect(void)
 {
-    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &example_handler_on_wifi_disconnect));
-    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, &example_handler_on_sta_got_ip));
-    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, WIFI_EVENT_STA_CONNECTED, &example_handler_on_wifi_connect));
     return esp_wifi_disconnect();
 }
 
@@ -136,15 +97,43 @@ esp_err_t example_wifi_connect(void)
 {
     ESP_LOGI(TAG, "Start example_connect.");
     example_wifi_start();
+
     wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = CONFIG_EXAMPLE_WIFI_SSID,
-            .password = CONFIG_EXAMPLE_WIFI_PASSWORD,
-            // .scan_method = EXAMPLE_WIFI_SCAN_METHOD,
-            // .sort_method = EXAMPLE_WIFI_CONNECT_AP_SORT_METHOD,
-            // .threshold.rssi = CONFIG_EXAMPLE_WIFI_SCAN_RSSI_THRESHOLD,
-            .threshold.authmode = EXAMPLE_WIFI_SCAN_AUTH_MODE,
+        .ap = {
+            .ssid = EXAMPLE_ESP_WIFI_SSID,
+            .ssid_len = strlen(EXAMPLE_ESP_WIFI_SSID),
+            .channel = EXAMPLE_ESP_WIFI_CHANNEL,
+            .password = EXAMPLE_ESP_WIFI_PASS,
+            .max_connection = EXAMPLE_MAX_STA_CONN,
+#ifdef CONFIG_ESP_WIFI_SOFTAP_SAE_SUPPORT
+            .authmode = WIFI_AUTH_WPA3_PSK,
+            .sae_pwe_h2e = WPA3_SAE_PWE_BOTH,
+#else /* CONFIG_ESP_WIFI_SOFTAP_SAE_SUPPORT */
+            .authmode = WIFI_AUTH_WPA2_PSK,
+#endif
+            .pmf_cfg = {
+                    .required = true,
+            },
+#ifdef CONFIG_ESP_WIFI_BSS_MAX_IDLE_SUPPORT
+            .bss_max_idle_cfg = {
+                .period = WIFI_AP_DEFAULT_MAX_IDLE_PERIOD,
+                .protected_keep_alive = 1,
+            },
+#endif
+            .gtk_rekey_interval = EXAMPLE_GTK_REKEY_INTERVAL,
         },
     };
-    return example_wifi_sta_do_connect(wifi_config, true);
+    if (strlen(EXAMPLE_ESP_WIFI_PASS) == 0) {
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    esp_err_t err = esp_wifi_start();
+    ESP_ERROR_CHECK(err);
+
+    ESP_LOGI(
+        TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
+        EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS, EXAMPLE_ESP_WIFI_CHANNEL);
+    return err;
 }

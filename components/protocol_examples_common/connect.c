@@ -65,7 +65,7 @@ esp_err_t example_connect(void)
         return ESP_FAIL;
     }
     ESP_ERROR_CHECK(esp_register_shutdown_handler(&example_wifi_shutdown));
-    example_print_all_netif_ips("");
+    example_print_all_netif_ips(EXAMPLE_NETIF_DESC_STA);
 
     return ESP_OK;
 }

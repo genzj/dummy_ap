@@ -1,43 +1,40 @@
-menu "Example Connection Configuration"
+menu "WiFi AP Configuration"
 
-    orsource "$IDF_PATH/examples/common_components/env_caps/$IDF_TARGET/Kconfig.env_caps"
-
-    config EXAMPLE_WIFI_SSID
+    config ESP_WIFI_SSID
         string "WiFi SSID"
-        default "dummy-ap"
+        default "myssid"
         help
-            SSID (network name) for the AP.
+            SSID (network name) for the example to connect to.
 
-    config EXAMPLE_WIFI_PASSWORD
+    config ESP_WIFI_PASSWORD
         string "WiFi Password"
         default "mypassword"
         help
-            WiFi password (WPA or WPA2) for the ap to use.
-            Can be left blank if the network has no security set.
-
-    choice EXAMPLE_WIFI_AUTH_MODE
-        prompt "WiFi AP auth mode"
-        default EXAMPLE_WIFI_AUTH_OPEN
+            WiFi password (WPA or WPA2) for the example to use.
+    config ESP_WIFI_CHANNEL
+        int "WiFi Channel"
+        range 1 13
+        default 1
         help
-            The authmode to use.
+            WiFi channel (network channel) for the example to use.
 
-        config EXAMPLE_WIFI_AUTH_OPEN
-            bool "OPEN"
-        config EXAMPLE_WIFI_AUTH_WEP
-            bool "WEP"
-        config EXAMPLE_WIFI_AUTH_WPA_PSK
-            bool "WPA PSK"
-        config EXAMPLE_WIFI_AUTH_WPA2_PSK
-            bool "WPA2 PSK"
-        config EXAMPLE_WIFI_AUTH_WPA_WPA2_PSK
-            bool "WPA WPA2 PSK"
-        config EXAMPLE_WIFI_AUTH_WPA2_ENTERPRISE
-            bool "WPA2 ENTERPRISE"
-        config EXAMPLE_WIFI_AUTH_WPA3_PSK
-            bool "WPA3 PSK"
-        config EXAMPLE_WIFI_AUTH_WPA2_WPA3_PSK
-            bool "WPA2 WPA3 PSK"
-        config EXAMPLE_WIFI_AUTH_WAPI_PSK
-            bool "WAPI PSK"
-    endchoice
+    config ESP_MAX_STA_CONN
+        int "Maximal STA connections"
+        default 4
+        help
+            Max number of the STA connects to AP.
+
+    config ESP_GTK_REKEYING_ENABLE
+        bool "Enable GTK Rekeying"
+        default y
+        help
+            Flag to enable GTK rekeying.
+
+    config ESP_GTK_REKEY_INTERVAL
+        int "GTK rekey interval"
+        depends on ESP_GTK_REKEYING_ENABLE
+        range 60 65535
+        default 600
+        help
+            GTK rekeying interval in seconds.
 endmenu
