@@ -18,6 +18,7 @@
 #include "esp_netif.h"
 #include "protocol_examples_common.h"
 #include <esp_http_server.h>
+#include "led.h"
 
 /* An example that demonstrates multiple
    long running http requests running in parallel.
@@ -375,6 +376,17 @@ void app_main(void)
     // start workers
     start_workers();
 
+    bool success = xTaskCreate(
+        led_main_task, "led",
+        ASYNC_WORKER_TASK_STACK_SIZE, // stack size
+        (void *)0, // argument
+        ASYNC_WORKER_TASK_PRIORITY, // priority
+        NULL
+    );
+
+    if (!success) {
+        ESP_LOGE(TAG, "Failed to start led tasks");
+    }
     /* Start the server for the first time */
     server = start_webserver();
 }

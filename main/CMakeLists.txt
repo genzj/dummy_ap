@@ -1,3 +1,3 @@
 idf_component_register(SRCS "main.c"
-                    PRIV_REQUIRES esp-tls esp_wifi nvs_flash esp_eth esp_http_server protocol_examples_common
+                    PRIV_REQUIRES esp-tls esp_wifi nvs_flash esp_eth esp_http_server protocol_examples_common led
                     INCLUDE_DIRS ".")
