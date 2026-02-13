@@ -353,6 +353,20 @@ static void connect_handler(
     }
 }
 
+static void start_led() {
+    bool success = xTaskCreate(
+        led_main_task, "led",
+        ASYNC_WORKER_TASK_STACK_SIZE, // stack size
+        (void *)0, // argument
+        ASYNC_WORKER_TASK_PRIORITY, // priority
+        NULL
+    );
+
+    if (!success) {
+        ESP_LOGE(TAG, "Failed to start led tasks");
+    }
+}
+
 void app_main(void)
 {
     static httpd_handle_t server = NULL;
@@ -360,6 +374,9 @@ void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    start_led();
+    led_set_mode(LED_MODE_BLINK_FAST);
 
     /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
      * Read "Establishing Wi-Fi or Ethernet Connection" section in
@@ -376,17 +393,8 @@ void app_main(void)
     // start workers
     start_workers();
 
-    bool success = xTaskCreate(
-        led_main_task, "led",
-        ASYNC_WORKER_TASK_STACK_SIZE, // stack size
-        (void *)0, // argument
-        ASYNC_WORKER_TASK_PRIORITY, // priority
-        NULL
-    );
-
-    if (!success) {
-        ESP_LOGE(TAG, "Failed to start led tasks");
-    }
     /* Start the server for the first time */
     server = start_webserver();
+
+    led_set_mode(LED_MODE_BREATH);
 }

@@ -16,7 +16,7 @@ enum LED_MODE {
 /** Initialize LED IO, controller and other internal structures */
 void led_init(void);
 /** The LED control task, which should be wrapped into a OS task from the main component */
-void led_main_task(void*);
+void led_main_task(void* arg);
 /** Gets the current LED mode */
 enum LED_MODE led_get_mode(void);
 /** Sets the LED mode */

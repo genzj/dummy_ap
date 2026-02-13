@@ -1,0 +1,34 @@
+menu "LED Configuration"
+
+    config LED_GPIO
+        int "LED GPIO Pin"
+        default 8
+        help
+            GPIO pin number for LED control.
+
+    config LED_TIMER_ID
+        int "LED Timer ID"
+        default 0
+        range 0 3
+        help
+            LEDC timer ID (0-3) for LED control.
+
+    config LED_BLINK_SLOW_MS
+        int "Slow Blink Period (ms)"
+        default 1000
+        help
+            Time period in milliseconds for slow blink mode.
+
+    config LED_BLINK_FAST_MS
+        int "Fast Blink Period (ms)"
+        default 200
+        help
+            Time period in milliseconds for fast blink mode.
+
+    config LED_BREATH_FADE_MS
+        int "Breath Fade Duration (ms)"
+        default 2000
+        help
+            Fade duration in milliseconds for breathing effect.
+
+endmenu
