@@ -8,7 +8,7 @@ menu "LED Configuration"
 
     config LED_TIMER_ID
         int "LED Timer ID"
-        default 0
+        default 1
         range 0 3
         help
             LEDC timer ID (0-3) for LED control.
@@ -27,8 +27,17 @@ menu "LED Configuration"
 
     config LED_BREATH_FADE_MS
         int "Breath Fade Duration (ms)"
-        default 2000
+        default 3000
         help
             Fade duration in milliseconds for breathing effect.
+
+    config LED_OUTPUT_INVERT
+        bool "Enable GPIO output invert"
+        default y
+        help
+            Enable GPIO output inversion for LED control.
+            Set to 'y' if LED is pull-up (GPIO low = LED on).
+            Set to 'n' if LED is pull-down (GPIO high = LED on).
+            Pull-up ('y') is more common for its higher driven capacity.
 
 endmenu
